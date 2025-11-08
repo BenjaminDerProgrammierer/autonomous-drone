@@ -16,7 +16,7 @@ type FileIdentifier = {
  * @param fileId - The file id (e.g., 1, 2, 3) or 'example'
  * @returns Array of strings, one per line
  */
-export function readInputFile(file: FileIdentifier): string[] {
+function readInputFile(file: FileIdentifier): string[] {
     const dataDir = path.join(__dirname, '..', 'data');
     const filename = `level${file.level}_${file.fileId}.in`;
     const filePath = path.join(dataDir, filename);
@@ -30,7 +30,7 @@ export function readInputFile(file: FileIdentifier): string[] {
  * @param fileId - The file id (e.g., 1, 2, 3) or 'example'
  * @param lines - Array of strings to write, one per line
  */
-export function writeOutputFile(file: FileIdentifier, lines: string[]): void {
+function writeOutputFile(file: FileIdentifier, lines: string[]): void {
     const outDir = path.join(__dirname, '..', 'data-out');
     if (!fs.existsSync(outDir)) {
         fs.mkdirSync(outDir, { recursive: true });
@@ -46,7 +46,7 @@ export function writeOutputFile(file: FileIdentifier, lines: string[]): void {
  * @param level - The level number (e.g., 1, 2, 3)
  * @returns Array of FileIdentifier objects for all input files matching the level pattern
  */
-export function getInputFilesForLevel(level: number): FileIdentifier[] {
+function getInputFilesForLevel(level: number): FileIdentifier[] {
     const dataDir = path.join(__dirname, '..', 'data');
     const pattern = `level${level}_`;
 
