@@ -126,7 +126,7 @@ function calculateLinearInterpolation(x: number, x0: number, x1: number, y0: num
   return (y0 * (x1 - x) + y1 * (x - x0)) / (x1 - x0);
 }
 
-function solveLevel2(inputLines: string[]): string[] {
+function solveLevel3(inputLines: string[]): string[] {
   const n = Number.parseInt(inputLines[0]);
   const timeLimit = Number.parseInt(inputLines[1]);
   const results: string[] = [];
@@ -139,4 +139,4 @@ function solveLevel2(inputLines: string[]): string[] {
   return results;
 }
 
-solveLevel(3, (inputLines: string[]) => solveLevel2(inputLines));
+solveLevel(3, (inputLines: string[]) => solveLevel3(inputLines));
