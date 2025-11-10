@@ -4,22 +4,82 @@ function doDrohne(targetHeight: number, timeLimit: number): number[] {
   const GRAVITY = 10;
   const MAX_ACCELERATION = 20;
   const MIN_ACCELERATION = 0;
+
   const accelerations: number[] = [];
 
   let velocity = 0;
   let height = 0;
+  let phase = 0;
 
-  console.log("Phase 1: Reach target height, then decelerate to zero velocity");
+  let maxHeightReached = 0;
 
-  while (height < Math.max(targetHeight, 10) && timeLimit > 0) {
-    const heightAfterOneTickWhenFullAcceleration = height + velocity + MAX_ACCELERATION - GRAVITY;
+  while (timeLimit > 0 && (height > 0 || phase < 4)) {
 
+    // Calculate acceleration
     let acceleration: number;
+    switch (phase) {
+      case 0:
+        // Make sure comment is only printed once with phase change + continue
+        console.log("Phase 1: Reach target height");
+        phase = 1;
+        continue;
+      case 1:
+        acceleration = MAX_ACCELERATION;
+        if (height >= targetHeight) {
+          console.log(`--- Height: ${height}/${targetHeight}, Velocity: ${velocity} ---`);
+          console.log("Phase 2: Decelerate to zero velocity");
+          phase = 2;
+          continue;
+        }
+        break;
+      case 2:
+        acceleration = 0;
+        if (velocity <= 0) {
+          console.log(`--- Height: ${height}/${targetHeight}, Velocity: ${velocity}/0 ---`);
+          console.log("Phase 3: Descend to height 30 at -10 velocity");
+          phase = 3;
+          continue;
+        }
+        break;
+      case 3:
+        if (velocity <= -10) {
+          acceleration = 10;
+        } else {
+          acceleration = 0;
+        }
+        if (height <= 30) {
+          console.log(`--- Height: ${height}, Velocity: ${velocity}/-10 ---`);
+          console.log("Phase 4: Land softly");
+          phase = 4;
+          continue;
+        }
+        break;
+      case 4: {
+        // Use linear interpolation to determine target breaking velocity
+        // x0, x1: height range (ground level (0) to breaking start height (30))
+        // y0, y1: target velocity range (velocity at ground level (0) to velocity at breaking start height (-10))
+        // x: current height
+        // y: target velocity at current height
+        // Round to nearest integer
+        const y = Math.round(calculateLinearInterpolation(height, 0, 30, 0, -10));
 
-    if (height < heightAfterOneTickWhenFullAcceleration) {
-      acceleration = MAX_ACCELERATION;
-    } else {
-      acceleration = 0;
+        acceleration = y - velocity + GRAVITY;
+
+        if (height === 1 && velocity === 0) {
+          console.log(`--- Height: ${height}, Velocity: ${velocity}/0 ---`);
+          console.log("Phase 5: Last tick");
+          phase = 5;
+          continue;
+        }
+        break;
+      }
+      case 5:
+        // Final tick, set acceleration to 9 to not hover above ground due to rounding
+        acceleration = 9;
+        break;
+      default:
+        console.error('Unknown phase: ', phase);
+        process.exit(1);
     }
 
     accelerations.push(acceleration);
@@ -39,95 +99,31 @@ function doDrohne(targetHeight: number, timeLimit: number): number[] {
 
     // Decrease time limit
     timeLimit--;
+    maxHeightReached = Math.max(maxHeightReached, height);
+
     console.log(`Time left: ${timeLimit}, Height: ${height}, Velocity: ${velocity}, Acceleration: ${acceleration}`);
   }
 
-  // Do not accelerate, so we come to a stop at another height.
-  while (velocity > 0 && timeLimit > 0) {
-    const acceleration = 0;
-
-    velocity += acceleration - GRAVITY;
-    height += velocity;
-    timeLimit--;
-    accelerations.push(acceleration);
-    console.log(`Time left: ${timeLimit}, Height: ${height}, Velocity: ${velocity}, Acceleration: ${acceleration}`);
-  }
-
-  console.log(`--- Height: ${height}, Target Height: ${targetHeight}, Velocity: ${velocity}/0 ---`);
-  console.log();
-  console.log("Phase 2: Land gently");
-
-  let breaking = false;
-  while (height > 0 && timeLimit > 0) {
-    let acceleration: number;
-
-    // Keep velocity at -10
-    if (velocity <= -10) {
-      acceleration = 10;
-    } else {
-      acceleration = 0;
-    }
-
-    // If we are close to the ground, start breaking
-    if (height <= 30 && !breaking) {
-      breaking = true;
-      console.log('Starting breaking maneuver');
-    }
-
-    if (breaking) {
-      acceleration = calculateTargetBreakingVelocity(height, velocity) - velocity + GRAVITY;
-      // if height is 1, and velocity is 0, we need to set the acceleration to 9 to finally land.
-      if (height === 1 && velocity === 0) {
-        acceleration = 9;
-      }
-    }
-
-    if (acceleration > MAX_ACCELERATION) {
-      console.error('Acceleration exceeds maximum limit', acceleration);
-      console.log(`Current height: ${height}, velocity: ${velocity}`);
-      process.exit(1);
-    } else if (acceleration < MIN_ACCELERATION) {
-      console.error('Acceleration below minimum limit: ', acceleration);
-      console.log(`Current height: ${height}, velocity: ${velocity}`);
-      process.exit(1);
-    }
-
-    velocity += acceleration - GRAVITY;
-    height += velocity;
-    timeLimit--;
-    accelerations.push(acceleration);
-
-    console.log(`Time left: ${timeLimit}, Height: ${height}, Velocity: ${velocity}, Acceleration: ${acceleration}, Net Force: ${acceleration - GRAVITY}`);
-  }
-
-  console.log(`--- Final Height: ${height}, Target Height: ${targetHeight}, Final Velocity: ${velocity} ---`);
+  console.log(`--- Final Height: ${height}, Height reached/Target Height: ${maxHeightReached}/${targetHeight}, Final Velocity: ${velocity} ---`);
   if (height <= 0) {
-    console.log('Landed!');
     if (velocity < -1) {
       console.log('Crash landing!');
+      process.exit(1);
+    }
+    if (maxHeightReached < targetHeight) {
+      console.log('Did not reach target height!');
       process.exit(1);
     }
   } else {
     console.log('Out of time!');
     process.exit(1);
   }
+  console.log('Successful landing!');
   return accelerations;
 }
 
-function calculateTargetBreakingVelocity(height: number, velocity: number): number {
-  // Use linear interpolation to determine target breaking velocity
-
-  const x0 = 0;    // Height at ground level
-  const x1 = 30;   // Height at which we start breaking
-  const y0 = 0;    // Target velocity at ground level
-  const y1 = -10;  // Target velocity at breaking start height
-
-  const x = height;
-  
-  // Linear interpolation formula rearranged to solve for y
-  const y = (y0 * (x1 - x) + y1 * (x - x0)) / (x1 - x0);
-
-  return Math.round(y);
+function calculateLinearInterpolation(x: number, x0: number, x1: number, y0: number, y1: number): number {
+  return (y0 * (x1 - x) + y1 * (x - x0)) / (x1 - x0);
 }
 
 function solveLevel2(inputLines: string[]): string[] {
